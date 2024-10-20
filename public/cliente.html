@@ -8,6 +8,7 @@
   <!-- Estilos básicos -->
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
+    h2 { margin-top: 30px; }
     .plato { margin: 10px 0; }
     .plato input { margin-right: 10px; }
     button { margin-top: 20px; padding: 10px 20px; }
@@ -16,30 +17,95 @@
 <body>
   <h1>Menú</h1>
   <div id="menu">
-    <!-- Aquí se mostrarán los platos -->
+    <!-- Aquí se mostrarán las categorías y los platos -->
   </div>
   <button onclick="enviarPedido()">Enviar Pedido</button>
 
   <script>
-    // Menú de ejemplo
+    // Menú con categorías y platos
     const menu = [
-      { id: 1, nombre: 'Ensalada Mixta', precio: 5 },
-      { id: 2, nombre: 'Sopa de Tomate', precio: 4 },
-      { id: 3, nombre: 'Paella', precio: 12 },
-      { id: 4, nombre: 'Filete de Ternera', precio: 15 },
-      { id: 5, nombre: 'Flan Casero', precio: 3 },
+      {
+        categoria: 'Entrantes',
+        platos: [
+          { id: 1, nombre: 'Ensalada Mixta', precio: 5 },
+          { id: 2, nombre: 'Sopa de Tomate', precio: 4 },
+        ],
+      },
+      {
+        categoria: 'Carnes',
+        platos: [
+          { id: 3, nombre: 'Filete de Ternera', precio: 15 },
+          { id: 4, nombre: 'Pollo Asado', precio: 12 },
+        ],
+      },
+      {
+        categoria: 'Pescados',
+        platos: [
+          { id: 5, nombre: 'Salmón a la Plancha', precio: 14 },
+          { id: 6, nombre: 'Merluza en Salsa Verde', precio: 13 },
+        ],
+      },
+      {
+        categoria: 'Mariscos',
+        platos: [
+          { id: 7, nombre: 'Gambas al Ajillo', precio: 16 },
+          { id: 8, nombre: 'Pulpo a la Gallega', precio: 18 },
+        ],
+      },
+      {
+        categoria: 'Pastas',
+        platos: [
+          { id: 9, nombre: 'Espaguetis Boloñesa', precio: 10 },
+          { id: 10, nombre: 'Lasaña de Carne', precio: 11 },
+        ],
+      },
+      {
+        categoria: 'Pizzas',
+        platos: [
+          { id: 11, nombre: 'Pizza Margarita', precio: 9 },
+          { id: 12, nombre: 'Pizza Cuatro Quesos', precio: 11 },
+        ],
+      },
+      {
+        categoria: 'Hamburguesas',
+        platos: [
+          { id: 13, nombre: 'Hamburguesa Clásica', precio: 8 },
+          { id: 14, nombre: 'Hamburguesa Doble', precio: 10 },
+        ],
+      },
+      {
+        categoria: 'Postres',
+        platos: [
+          { id: 15, nombre: 'Flan Casero', precio: 3 },
+          { id: 16, nombre: 'Tarta de Queso', precio: 4 },
+        ],
+      },
+      {
+        categoria: 'Bebidas',
+        platos: [
+          { id: 17, nombre: 'Agua Mineral', precio: 1.5 },
+          { id: 18, nombre: 'Refresco', precio: 2 },
+          { id: 19, nombre: 'Cerveza', precio: 2.5 },
+        ],
+      },
     ];
 
     function mostrarMenu() {
       const divMenu = document.getElementById('menu');
-      menu.forEach(plato => {
-        const divPlato = document.createElement('div');
-        divPlato.classList.add('plato');
-        divPlato.innerHTML = `
-          <input type="checkbox" id="plato-${plato.id}" value="${plato.nombre}">
-          <label for="plato-${plato.id}">${plato.nombre} - €${plato.precio}</label>
-        `;
-        divMenu.appendChild(divPlato);
+      menu.forEach(seccion => {
+        const h2 = document.createElement('h2');
+        h2.textContent = seccion.categoria;
+        divMenu.appendChild(h2);
+
+        seccion.platos.forEach(plato => {
+          const divPlato = document.createElement('div');
+          divPlato.classList.add('plato');
+          divPlato.innerHTML = `
+            <input type="checkbox" id="plato-${plato.id}" data-id="${plato.id}" data-nombre="${plato.nombre}" data-precio="${plato.precio}">
+            <label for="plato-${plato.id}">${plato.nombre} - €${plato.precio}</label>
+          `;
+          divMenu.appendChild(divPlato);
+        });
       });
     }
 
@@ -47,7 +113,11 @@
       const seleccionados = document.querySelectorAll('#menu input:checked');
       const platosSeleccionados = [];
       seleccionados.forEach(input => {
-        platosSeleccionados.push(input.value);
+        platosSeleccionados.push({
+          id: input.getAttribute('data-id'),
+          nombre: input.getAttribute('data-nombre'),
+          precio: parseFloat(input.getAttribute('data-precio'))
+        });
       });
 
       if (platosSeleccionados.length === 0) {
@@ -57,11 +127,12 @@
 
       const pedido = {
         mesa: obtenerNumeroDeMesa(),
-        platos: platosSeleccionados
+        platos: platosSeleccionados,
+        fechaHora: new Date().toLocaleString()
       };
 
       // Enviar el pedido al servidor
-      fetch('/pedido', {
+      fetch(window.location.origin + '/pedido', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pedido)
