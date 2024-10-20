@@ -5,76 +5,135 @@
   <meta charset="UTF-8">
   <title>Pantalla de Cocina</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Estilos básicos -->
+  <!-- Estilos -->
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    .pedido { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-    .pedido.completado { background-color: #e0e0e0; }
-    button { margin-top: 10px; padding: 5px 10px; }
+    h1 { text-align: center; }
+    #grid-pedidos {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(3, auto);
+      grid-gap: 10px;
+    }
+    .pedido {
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f9f9f9;
+    }
+    .pedido.completado {
+      background-color: #70ca85; /* Verde claro */
+    }
+    .pedido h3 {
+      margin-top: 0;
+    }
+    .plato {
+      cursor: pointer;
+    }
+    .plato.completado {
+      text-decoration: line-through;
+      color: rgb(224, 13, 13);
+    }
+    button {
+      margin-top: 10px;
+      padding: 5px 10px;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
   <h1>Pedidos en Cocina</h1>
-  <div id="lista-pedidos"></div>
+  <div id="grid-pedidos"></div>
 
   <!-- Importar Socket.IO -->
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
 
-    const listaPedidos = document.getElementById('lista-pedidos');
+    const gridPedidos = document.getElementById('grid-pedidos');
+
+    let pedidos = [];
 
     // Al recibir la lista de pedidos actuales
-    socket.on('pedidosActuales', (pedidos) => {
-      mostrarPedidos(pedidos);
+    socket.on('pedidosActuales', (pedidosActuales) => {
+      pedidos = pedidosActuales;
+      mostrarPedidos();
     });
 
     // Al recibir un nuevo pedido
     socket.on('nuevoPedido', (pedido) => {
-      agregarPedido(pedido);
+      pedidos.push(pedido);
+      mostrarPedidos();
     });
 
-    // Al recibir una actualización de estado
-    socket.on('estadoActualizado', (pedidoActualizado) => {
-      actualizarEstadoPedido(pedidoActualizado);
+    // Al recibir una actualización de estado de un plato
+    socket.on('estadoPlatoActualizado', (data) => {
+      const { idPedido, idPlato } = data;
+      const pedido = pedidos.find(p => p.id === idPedido);
+      if (pedido) {
+        const plato = pedido.platos.find(pl => parseInt(pl.id) === idPlato);
+        if (plato) {
+          plato.estado = 'Completado';
+          mostrarPedidos();
+        }
+      }
     });
 
-    function mostrarPedidos(pedidos) {
-      listaPedidos.innerHTML = '';
-      pedidos.forEach(pedido => {
-        agregarPedido(pedido);
+    // Al recibir una actualización de estado de un pedido
+    socket.on('estadoPedidoActualizado', (pedidoActualizado) => {
+      const index = pedidos.findIndex(p => p.id === pedidoActualizado.id);
+      if (index !== -1) {
+        pedidos[index] = pedidoActualizado;
+        mostrarPedidos();
+      }
+    });
+
+    function mostrarPedidos() {
+      gridPedidos.innerHTML = '';
+      pedidos.sort((a, b) => a.id - b.id); // Ordenar por orden de llegada
+      const pedidosAMostrar = pedidos.slice(0, 15); // Mostrar hasta 15 pedidos
+      pedidosAMostrar.forEach(pedido => {
+        const divPedido = document.createElement('div');
+        divPedido.id = `pedido-${pedido.id}`;
+        divPedido.classList.add('pedido');
+        if (pedido.estado === 'Completado') {
+          divPedido.classList.add('completado');
+        }
+        divPedido.innerHTML = `
+          <h3>Mesa ${pedido.mesa}</h3>
+          <p><strong>Fecha y hora:</strong> ${pedido.fechaHora}</p>
+          <p><strong>Platos:</strong></p>
+          <ul>
+            ${pedido.platos.map(plato => `
+              <li class="plato ${plato.estado === 'Completado' ? 'completado' : ''}" data-id-pedido="${pedido.id}" data-id-plato="${plato.id}">
+                ${plato.nombre} - €${plato.precio}
+              </li>
+            `).join('')}
+          </ul>
+          <p><strong>Total:</strong> €${calcularTotal(pedido.platos)}</p>
+          <button onclick="marcarPedidoCompletado(${pedido.id})">Marcar Pedido Completado</button>
+        `;
+        gridPedidos.appendChild(divPedido);
+      });
+      agregarEventosPlatos();
+    }
+
+    function agregarEventosPlatos() {
+      const platosElems = document.querySelectorAll('.plato');
+      platosElems.forEach(platoElem => {
+        platoElem.addEventListener('click', () => {
+          const idPedido = parseInt(platoElem.getAttribute('data-id-pedido'));
+          const idPlato = parseInt(platoElem.getAttribute('data-id-plato'));
+          socket.emit('actualizarEstadoPlato', { idPedido, idPlato });
+        });
       });
     }
 
-    function agregarPedido(pedido) {
-      const divPedido = document.createElement('div');
-      divPedido.id = `pedido-${pedido.id}`;
-      divPedido.classList.add('pedido');
-      divPedido.innerHTML = `
-        <h3>Mesa ${pedido.mesa}</h3>
-        <p>Platos: ${pedido.platos.join(', ')}</p>
-        <p>Estado: <span id="estado-${pedido.id}">${pedido.estado}</span></p>
-        <button onclick="marcarComoCompletado(${pedido.id})">Marcar como completado</button>
-      `;
-      listaPedidos.appendChild(divPedido);
+    function calcularTotal(platos) {
+      return platos.reduce((total, plato) => total + plato.precio, 0).toFixed(2);
     }
 
-    function actualizarEstadoPedido(pedido) {
-      const divPedido = document.getElementById(`pedido-${pedido.id}`);
-      if (divPedido) {
-        const estadoElem = divPedido.querySelector(`#estado-${pedido.id}`);
-        estadoElem.textContent = pedido.estado;
-
-        if (pedido.estado === 'Completado') {
-          divPedido.classList.add('completado');
-        } else {
-          divPedido.classList.remove('completado');
-        }
-      }
-    }
-
-    function marcarComoCompletado(idPedido) {
-      socket.emit('actualizarEstado', { idPedido, nuevoEstado: 'Completado' });
+    function marcarPedidoCompletado(idPedido) {
+      socket.emit('actualizarEstadoPedido', { idPedido, nuevoEstado: 'Completado' });
     }
   </script>
 </body>
