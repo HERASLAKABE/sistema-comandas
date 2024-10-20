@@ -1,0 +1,81 @@
+<!-- public/cocina.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Pantalla de Cocina</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Estilos básicos -->
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .pedido { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+    .pedido.completado { background-color: #e0e0e0; }
+    button { margin-top: 10px; padding: 5px 10px; }
+  </style>
+</head>
+<body>
+  <h1>Pedidos en Cocina</h1>
+  <div id="lista-pedidos"></div>
+
+  <!-- Importar Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const listaPedidos = document.getElementById('lista-pedidos');
+
+    // Al recibir la lista de pedidos actuales
+    socket.on('pedidosActuales', (pedidos) => {
+      mostrarPedidos(pedidos);
+    });
+
+    // Al recibir un nuevo pedido
+    socket.on('nuevoPedido', (pedido) => {
+      agregarPedido(pedido);
+    });
+
+    // Al recibir una actualización de estado
+    socket.on('estadoActualizado', (pedidoActualizado) => {
+      actualizarEstadoPedido(pedidoActualizado);
+    });
+
+    function mostrarPedidos(pedidos) {
+      listaPedidos.innerHTML = '';
+      pedidos.forEach(pedido => {
+        agregarPedido(pedido);
+      });
+    }
+
+    function agregarPedido(pedido) {
+      const divPedido = document.createElement('div');
+      divPedido.id = `pedido-${pedido.id}`;
+      divPedido.classList.add('pedido');
+      divPedido.innerHTML = `
+        <h3>Mesa ${pedido.mesa}</h3>
+        <p>Platos: ${pedido.platos.join(', ')}</p>
+        <p>Estado: <span id="estado-${pedido.id}">${pedido.estado}</span></p>
+        <button onclick="marcarComoCompletado(${pedido.id})">Marcar como completado</button>
+      `;
+      listaPedidos.appendChild(divPedido);
+    }
+
+    function actualizarEstadoPedido(pedido) {
+      const divPedido = document.getElementById(`pedido-${pedido.id}`);
+      if (divPedido) {
+        const estadoElem = divPedido.querySelector(`#estado-${pedido.id}`);
+        estadoElem.textContent = pedido.estado;
+
+        if (pedido.estado === 'Completado') {
+          divPedido.classList.add('completado');
+        } else {
+          divPedido.classList.remove('completado');
+        }
+      }
+    }
+
+    function marcarComoCompletado(idPedido) {
+      socket.emit('actualizarEstado', { idPedido, nuevoEstado: 'Completado' });
+    }
+  </script>
+</body>
+</html>

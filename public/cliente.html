@@ -1,0 +1,91 @@
+<!-- public/cliente.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Menú del Restaurante</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Estilos básicos -->
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .plato { margin: 10px 0; }
+    .plato input { margin-right: 10px; }
+    button { margin-top: 20px; padding: 10px 20px; }
+  </style>
+</head>
+<body>
+  <h1>Menú</h1>
+  <div id="menu">
+    <!-- Aquí se mostrarán los platos -->
+  </div>
+  <button onclick="enviarPedido()">Enviar Pedido</button>
+
+  <script>
+    // Menú de ejemplo
+    const menu = [
+      { id: 1, nombre: 'Ensalada Mixta', precio: 5 },
+      { id: 2, nombre: 'Sopa de Tomate', precio: 4 },
+      { id: 3, nombre: 'Paella', precio: 12 },
+      { id: 4, nombre: 'Filete de Ternera', precio: 15 },
+      { id: 5, nombre: 'Flan Casero', precio: 3 },
+    ];
+
+    function mostrarMenu() {
+      const divMenu = document.getElementById('menu');
+      menu.forEach(plato => {
+        const divPlato = document.createElement('div');
+        divPlato.classList.add('plato');
+        divPlato.innerHTML = `
+          <input type="checkbox" id="plato-${plato.id}" value="${plato.nombre}">
+          <label for="plato-${plato.id}">${plato.nombre} - €${plato.precio}</label>
+        `;
+        divMenu.appendChild(divPlato);
+      });
+    }
+
+    function enviarPedido() {
+      const seleccionados = document.querySelectorAll('#menu input:checked');
+      const platosSeleccionados = [];
+      seleccionados.forEach(input => {
+        platosSeleccionados.push(input.value);
+      });
+
+      if (platosSeleccionados.length === 0) {
+        alert('Por favor, selecciona al menos un plato.');
+        return;
+      }
+
+      const pedido = {
+        mesa: obtenerNumeroDeMesa(),
+        platos: platosSeleccionados
+      };
+
+      // Enviar el pedido al servidor
+      fetch('/pedido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pedido)
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert('Pedido enviado correctamente');
+        // Limpiar selección
+        document.querySelectorAll('#menu input:checked').forEach(input => input.checked = false);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Ocurrió un error al enviar el pedido.');
+      });
+    }
+
+    function obtenerNumeroDeMesa() {
+      // Obtener el número de mesa de la URL (parámetro 'mesa' en el QR)
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('mesa') || 'Desconocida';
+    }
+
+    // Mostrar el menú al cargar la página
+    mostrarMenu();
+  </script>
+</body>
+</html>
